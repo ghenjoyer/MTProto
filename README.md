@@ -31,6 +31,7 @@
    wget https://raw.githubusercontent.com/ghenjoyer/MTProto/main/mtproto-manager.sh
    chmod +x mtproto-manager.sh
 2. Запустите менеджер:
+   ```bash
    ./mtproto-manager.sh
 
 ---
