@@ -28,7 +28,7 @@
 
 1. Скачайте скрипт:
    ```bash
-   wget https://raw.githubusercontent.com/YOUR_USERNAME/mtproto-manager/main/mtproto-manager.sh
+   wget https://raw.githubusercontent.com/ghenjoyer/MTProto/main/mtproto-manager.sh
    chmod +x mtproto-manager.sh
 2. Запустите менеджер:
    ./mtproto-manager.sh
