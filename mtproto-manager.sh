@@ -114,8 +114,9 @@ list_configs() {
     echo "================================================================"
     
     local count=0
-    for conf in "$CONFIG_DIR"/*.conf 2>/dev/null; do
-        [ -f "$conf" ] || continue
+    
+    shopt -s nullglob
+    for conf in "$CONFIG_DIR"/*.conf; do
         [[ "$conf" == *"active.conf" ]] && continue
         ((count++))
         
@@ -134,6 +135,7 @@ list_configs() {
         printf "%2d. %-25s | Порт: %-5s | Домен: %-20s | %s\n" \
             $count "$name" "${PORT:-?}" "${DOMAIN:-?}" "$status"
     done
+    shopt -u nullglob
     
     if [ $count -eq 0 ]; then
         echo -e "${YELLOW}[WARN] Нет сохранённых конфигураций${NC}"
@@ -250,12 +252,12 @@ start_proxy() {
         echo ""
         echo "ИНФОРМАЦИЯ ДЛЯ ПОДКЛЮЧЕНИЯ:"
         echo "================================================================"
-        echo "Название: ${CYAN}${name}${NC}"
-        echo "Сервер: ${BLUE}${server_ip}${NC}"
-        echo "Порт: ${port}"
-        echo "Секрет: ${YELLOW}${secret}${NC}"
-        echo "Fake TLS: ${BLUE}${domain}${NC}"
-        echo "Контейнер: ${CYAN}${container_name}${NC}"
+        echo -e "Название: ${CYAN}${name}${NC}"
+        echo -e "Сервер: ${BLUE}${server_ip}${NC}"
+        echo -e "Порт: ${port}"
+        echo -e "Секрет: ${YELLOW}${secret}${NC}"
+        echo -e "Fake TLS: ${BLUE}${domain}${NC}"
+        echo -e "Контейнер: ${CYAN}${container_name}${NC}"
         echo "================================================================"
         echo "Ссылка для Telegram:"
         echo -e "${GREEN}tg://proxy?server=${server_ip}&port=${port}&secret=${secret}${NC}"
@@ -280,32 +282,45 @@ start_proxy() {
     fi
 }
 
-# Показать активную конфигурацию
+# Показать все запущенные конфигурации
 show_active() {
-    if [ ! -f "$ACTIVE_CONFIG_FILE" ]; then
-        echo -e "${YELLOW}[WARN] Активная конфигурация не установлена${NC}"
-        return
+    echo -e "\n${CYAN}Запущенные конфигурации:${NC}"
+    echo "================================================================"
+    
+    local count=0
+    shopt -s nullglob
+    
+    for conf in "$CONFIG_DIR"/*.conf; do
+        [[ "$conf" == *"active.conf" ]] && continue
+        
+        local name=$(basename "$conf" .conf)
+        source "$conf" 2>/dev/null
+        
+        local container_status=$(sudo docker inspect -f '{{.State.Status}}' "${CONTAINER:-}" 2>/dev/null)
+        
+        if [ "$container_status" = "running" ]; then
+            ((count++))
+            echo -e "\n[${count}] ${CYAN}${name}${NC}"
+            echo "----------------------------------------------------------------"
+            echo -e "Сервер: ${BLUE}${SERVER}${NC}"
+            echo -e "Порт: ${PORT}"
+            echo -e "Секрет: ${YELLOW}${SECRET}${NC}"
+            echo -e "Fake TLS: ${BLUE}${DOMAIN}${NC}"
+            echo -e "Контейнер: ${CYAN}${CONTAINER}${NC}"
+            echo -e "Статус: ${GREEN}запущен${NC}"
+            echo "----------------------------------------------------------------"
+            echo -e "${GREEN}tg://proxy?server=${SERVER}&port=${PORT}&secret=${SECRET}${NC}"
+        fi
+    done
+    
+    shopt -u nullglob
+    
+    if [ $count -eq 0 ]; then
+        echo -e "${YELLOW}[WARN] Нет запущенных конфигураций${NC}"
     fi
     
-    local name=$(grep "^NAME=" "$ACTIVE_CONFIG_FILE" | cut -d= -f2)
-    load_config "$name" 2>/dev/null || return
-    
-    local container_status=$(sudo docker inspect -f '{{.State.Status}}' "${CONTAINER:-}" 2>/dev/null)
-    local status="неизвестно"
-    [ "$container_status" = "running" ] && status="активен"
-    [ "$container_status" = "exited" ] && status="остановлен"
-    
-    echo -e "\n${CYAN}Активная конфигурация:${NC}"
     echo "================================================================"
-    echo "Название: ${NAME}"
-    echo "Сервер: ${SERVER}"
-    echo "Порт: ${PORT}"
-    echo "Секрет: ${SECRET}"
-    echo "Fake TLS: ${DOMAIN}"
-    echo "Контейнер: ${CONTAINER}"
-    echo "Статус: ${status}"
-    echo "================================================================"
-    echo "tg://proxy?server=${SERVER}&port=${PORT}&secret=${SECRET}"
+    echo "Всего запущено: ${count} конфигураций"
 }
 
 # Остановка контейнера
@@ -346,7 +361,7 @@ show_menu() {
     echo "3. Запустить конфигурацию"
     echo "4. Остановить конфигурацию"
     echo "5. Удалить конфигурацию"
-    echo "6. Показать активную"
+    echo "6. Показать запущенные"
     echo "7. Перезапустить активную"
     echo "0. Выход"
     echo ""
@@ -479,7 +494,7 @@ cli_mode() {
             echo "  start <name>      - запустить конфигурацию"
             echo "  stop <name>       - остановить конфигурацию"
             echo "  delete <name>     - удалить конфигурацию"
-            echo "  active            - показать активную"
+            echo "  active            - показать запущенные"
             echo "  restart           - перезапустить активную"
             ;;
         *)
